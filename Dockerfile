@@ -21,6 +21,8 @@ ENV PYBUILD=$CPYTHONROOT/Python-${PYVERSION}
 RUN mkdir -p $CPYTHONROOT; tar -C $CPYTHONROOT -xf $PYTARBALL
 WORKDIR $PYBUILD
 COPY ./cypatches ./patches
+
+
 # RUN cat ./patches/*.patch | patch -p1
 # # Generate Makefile
 # ENV PYINSTALL=$CPYTHONROOT/install/Python-${PYVERSION}

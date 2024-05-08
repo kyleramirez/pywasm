@@ -1,7 +1,7 @@
-diff --git a/pycore_object.h b/pycore_object.h
+diff --git a/Include/internal/pycore_object.h b/Include/internal/pycore_object.h
 index 7a2f13a21b..3d8ad0c7f2 100644
---- a/pycore_object.h
-+++ b/pycore_object.h
+--- a/Include/internal/pycore_object.h
++++ b/Include/internal/pycore_object.h
 @@ -10,6 +10,7 @@ extern "C" {
  
  #include <stdbool.h>
@@ -44,10 +44,3 @@ index 7a2f13a21b..3d8ad0c7f2 100644
  #ifdef __cplusplus
  }
  #endif
--- 
-2.25.1
-
-
-
-
-

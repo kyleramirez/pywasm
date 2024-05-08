@@ -1,4 +1,5 @@
-
+docker build -t pywasm .
+docker run -it --rm pywasm /bin/bash
 <!-- docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) emscripten/emsdk emcc helloworld.cpp -o helloworld.js
 docker run --rm -ti -v $(pwd):/python-wasm/cpython -w /python-wasm/cpython quay.io/tiran/cpythonbuild:emsdk3 bash -->
 

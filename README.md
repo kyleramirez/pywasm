@@ -24,3 +24,13 @@ docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) pywasm main.py -o main.wasm
   - this will show you everything the guy changed
 - figure out how to incorporate your python and your emcc
 - make it so that it compiles from python within your directory and places a wasm file in the same directory
+
+# # Install pthreads
+# ENV PTHREADBUILD=/opt/pthreads
+# ENV PTHREADREPO=https://git.savannah.gnu.org/git/hurd/libpthread.git/
+# ENV PTHREADBRANCH=2.26
+# WORKDIR $PTHREADBUILD
+# COPY ./install-pthread.sh .
+# RUN ./install-pthread.sh --wasm-bigint
+# Copy local setup
+

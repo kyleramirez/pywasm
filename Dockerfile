@@ -19,6 +19,7 @@ RUN apt-get update \
   gnupg2\
   jq\
   less\
+  libc6-dev\
   libdbus-glib-1-2\
   libltdl-dev\
   libtool\
@@ -81,6 +82,7 @@ ENV LIBFFIREPO=https://github.com/libffi/libffi
 ENV LIBFFI_COMMIT=f08493d249d2067c8b3207ba46693dd858f95db3
 WORKDIR $FFIBUILD
 COPY ./install-ffi.sh .
+COPY ./ffipatches ./patches
 RUN ./install-ffi.sh
 RUN cp $FFIBUILD/target/include/*.h $PYBUILD/Include/
 RUN mkdir -p $PYINSTALL/lib
@@ -90,44 +92,14 @@ COPY ./Setup.local $PYBUILD/Modules/
 # Generate Makefile
 WORKDIR $PYBUILD
 SHELL ["/bin/bash", "-c"]
-RUN source /emsdk/emsdk_env.sh &&\
-  CONFIG_SITE=./Tools/wasm/config.site-wasm32-emscripten\
-  READELF=true\
-  emconfigure ./configure\
-  CFLAGS="-O2 -g0 -fPIC -DPY_CALL_TRAMPOLINE"\
-  CPPFLAGS="-sUSE_BZIP2=1 -sUSE_ZLIB=1" \
-  PLATFORM_TRIPLET="wasm32-emscripten"\
-  --without-pymalloc\
-  --disable-shared\
-  --disable-ipv6\
-  --enable-big-digits=30\
-  --enable-optimizations\
-  --host=wasm32-unknown-emscripten\
-  --with-emscripten-target=node\
-  --build=$(./config.guess)\
-  --prefix=$PYINSTALL\
-  --with-build-python=$(which python3.11)
-# Build emscripten python
-ENV LIB=libpython3.11.a
-RUN make regen-frozen
-RUN source /emsdk/emsdk_env.sh &&\
-  emmake make CROSS_COMPILE=yes $LIB -j$(nproc)
-### Playing around
-# ENV MAIN_MODULE_LDFLAGS = \
-#   -O2 -g0 -s WASM_BIGINT\
-#   -L/opt/cpython/install/python-3.11.3/lib/\ 
-#   -s LZ4=1 \
-#   -s ALLOW_MEMORY_GROWTH=1 \
-#   -lffi
-
 # RUN source /emsdk/emsdk_env.sh &&\
 #   CONFIG_SITE=./Tools/wasm/config.site-wasm32-emscripten\
 #   READELF=true\
 #   emconfigure ./configure\
-#   CFLAGS="-O2 -g0 -fPIC -DPY_CALL_TRAMPOLINE"\
-#   CPPFLAGS="-sUSE_BZIP2=1 -sUSE_ZLIB=1 ${MAIN_MODULE_LDFLAGS}" \
+#   CFLAGS="-O2 -g0 -fPIC -DPY_CALL_TRAMPOLINE -pthread"\
+#   CPPFLAGS="-sUSE_BZIP2=1 -sUSE_ZLIB=1" \
 #   PLATFORM_TRIPLET="wasm32-emscripten"\
-#   --with-build-python=$LIB\
+#   --with-libs="-L/opt/cpython/install/python-3.11.3/lib -lffi -L/usr/lib/x86_64-linux-gnu -lpthread"\
 #   --without-pymalloc\
 #   --disable-shared\
 #   --disable-ipv6\
@@ -135,6 +107,11 @@ RUN source /emsdk/emsdk_env.sh &&\
 #   --enable-optimizations\
 #   --host=wasm32-unknown-emscripten\
 #   --with-emscripten-target=node\
-#   --build=$(./config.guess)
-# # RUN make regen-frozen
-# # RUN source /emsdk/emsdk_env.sh && emmake make CROSS_COMPILE=yes -j$(nproc)
+#   --build=$(./config.guess)\
+#   --prefix=$PYINSTALL\
+#   --with-build-python=$(which python3.11)
+# # Build emscripten python
+# ENV LIB=libpython3.11.a
+# RUN make regen-frozen
+# RUN source /emsdk/emsdk_env.sh &&\
+#   emmake make CROSS_COMPILE=yes -j$(nproc)

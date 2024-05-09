@@ -1,0 +1,13 @@
+diff --git a/testsuite/emscripten/build.sh b/testsuite/emscripten/build.sh
+index c77c041..a5a56ac 100755
+--- a/testsuite/emscripten/build.sh
++++ b/testsuite/emscripten/build.sh
+@@ -37,7 +37,7 @@ while [ $# -gt 0 ]; do
+ done
+ 
+ # Common compiler flags
+-export CFLAGS="-O3 -fPIC"
++export CFLAGS="-O3 -fPIC -pthread"
+ if [ "$WASM_BIGINT" = "true" ]; then
+   # We need to detect WASM_BIGINT support at compile time
+   export CFLAGS+=" -DWASM_BIGINT"

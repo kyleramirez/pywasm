@@ -34,3 +34,4 @@ docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) pywasm main.py -o main.wasm
 # RUN ./install-pthread.sh --wasm-bigint
 # Copy local setup
 
+--with-libs="-L/opt/cpython/install/python-3.11.3/lib -lffi -lstdc++"\

@@ -1,34 +1,99 @@
-FROM emscripten/emsdk:3.1.58-arm64
+# Based on pyodide 0.25.1
+# Install Amd64 Version
+FROM node:20.1.0-buster-slim@sha256:34f21a675893db99e6225e3d31b83d2da48a0d95a9f379e257b7fa9ccc104299 AS node-image
+FROM python:3.11.3-slim-buster@sha256:48b0146e8f85d6325b46073250a8ed9ec9d156da45d6c2821d5d0f9ad1960fb4
 # Install dependencies
-RUN apt-get update && apt-get install -yq build-essential libffi-dev autoconf automake libtool pkg-config less nano python3.11-dev
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends\
+  automake\
+  autotools-dev\
+  build-essential\
+  bzip2\
+  ccache\
+  cmake\
+  dejagnu\
+  f2c\
+  g++\
+  gfortran\
+  git\
+  gnupg2\
+  jq\
+  less\
+  libdbus-glib-1-2\
+  libltdl-dev\
+  libtool\
+  make\
+  nano\
+  ninja-build\
+  patch\
+  pkg-config\
+  prelink\
+  sqlite3\
+  sudo\
+  swig\
+  texinfo\
+  unzip\
+  wget\
+  xxd\
+  xz-utils\
+  && rm -rf /var/lib/apt/lists/*
 RUN apt-get autoremove --purge -yq
+# Install Emscripten
+ENV EMSCRIPTEN_VERSION=3.1.46
+WORKDIR /
+RUN git clone --depth 1 https://github.com/emscripten-core/emsdk.git
+RUN cd emsdk && ./emsdk install --build=Release $EMSCRIPTEN_VERSION
 # Patch emscripten
-ENV EMSCRIPTEN_VERSION=3.1.58
 WORKDIR /emsdk/upstream/emscripten
 COPY ./empatches ./patches
 RUN cat ./patches/*.patch | patch -p1 --verbose
+# Rebuild emscripten
 WORKDIR /emsdk
 RUN ./emsdk install --build=Release $EMSCRIPTEN_VERSION ccache-git-emscripten-64bit
 RUN ./emsdk activate --embedded --build=Release $EMSCRIPTEN_VERSION
-# Download cpython
-ENV PYVERSION=3.11.9
+# Unpack Python tarball
+ENV PYVERSION=3.11.3
 ENV PYTARBALL=/tmp/Python-${PYVERSION}.tgz
 ENV PYTHON_ARCHIVE_URL=https://www.python.org/ftp/python/${PYVERSION}/Python-${PYVERSION}.tgz
-RUN wget -q -O $PYTARBALL $PYTHON_ARCHIVE_URL
-# Patch cpython
 ENV CPYTHONROOT=/opt/cpython
-ENV PYBUILD=$CPYTHONROOT/Python-${PYVERSION}
-RUN mkdir -p $CPYTHONROOT; tar -C $CPYTHONROOT -xf $PYTARBALL
+ENV PYBUILD=$CPYTHONROOT/build/Python-${PYVERSION}
+ENV PYINSTALL=$CPYTHONROOT/install/Python-${PYVERSION}
 WORKDIR $PYBUILD
+RUN wget -q -O $PYTARBALL $PYTHON_ARCHIVE_URL
+RUN tar -C $PYBUILD --strip-components=1 -xf $PYTARBALL
+# Patch cpython
 COPY ./cypatches ./patches
 RUN cat ./patches/*.patch | patch -p1
+# Install autoconf
+WORKDIR /opt
+RUN wget https://mirrors.sarata.com/gnu/autoconf/autoconf-2.71.tar.xz
+RUN tar -xf autoconf-2.71.tar.xz
+WORKDIR /opt/autoconf-2.71
+RUN ./configure
+RUN make install
+RUN cp /usr/local/bin/autoconf /usr/bin/autoconf
+WORKDIR /opt
+RUN rm -rf autoconf-2.71
+RUN rm autoconf-2.71.tar.xz
+# Install libffi
+ENV FFIBUILD=/opt/libffi
+ENV LIBFFIREPO=https://github.com/libffi/libffi
+ENV LIBFFI_COMMIT=f08493d249d2067c8b3207ba46693dd858f95db3
+WORKDIR $FFIBUILD
+COPY ./install-ffi.sh .
+RUN ./install-ffi.sh
+RUN cp $FFIBUILD/target/include/*.h $PYBUILD/Include/
+RUN mkdir -p $PYINSTALL/lib
+RUN cp $FFIBUILD/target/lib/libffi.a $PYINSTALL/lib/
+# Copy local setup
+COPY ./Setup.local $PYBUILD/Modules/
 # Generate Makefile
-ENV PYINSTALL=$CPYTHONROOT/install/Python-${PYVERSION}
-# PYTHON_CFLAGS="-O2 -g0 -fPIC -DPY_CALL_TRAMPOLINE"
-RUN CONFIG_SITE=./Tools/wasm/config.site-wasm32-emscripten\
+WORKDIR $PYBUILD
+SHELL ["/bin/bash", "-c"]
+RUN source /emsdk/emsdk_env.sh &&\
+  CONFIG_SITE=./Tools/wasm/config.site-wasm32-emscripten\
   READELF=true\
-  emconfigure \
-  ./configure \
+  emconfigure ./configure\
   CFLAGS="-O2 -g0 -fPIC -DPY_CALL_TRAMPOLINE"\
   CPPFLAGS="-sUSE_BZIP2=1 -sUSE_ZLIB=1" \
   PLATFORM_TRIPLET="wasm32-emscripten"\
@@ -39,109 +104,37 @@ RUN CONFIG_SITE=./Tools/wasm/config.site-wasm32-emscripten\
   --enable-optimizations\
   --host=wasm32-unknown-emscripten\
   --with-emscripten-target=node\
-  --enable-wasm-dynamic-linking\
   --build=$(./config.guess)\
   --prefix=$PYINSTALL\
   --with-build-python=$(which python3.11)
-# Copy local setup
-COPY ./Setup.local $PYBUILD/Modules/
-# Install libffi
-ENV FFIBUILD=/opt/libffi
-ENV LIBFFIREPO=https://github.com/libffi/libffi
-ENV LIBFFI_COMMIT=f08493d249d2067c8b3207ba46693dd858f95db3
-RUN mkdir $FFIBUILD
-WORKDIR $FFIBUILD
-RUN git init\
-  && git fetch --depth 1 $LIBFFIREPO $LIBFFI_COMMIT\
-  && git checkout FETCH_HEAD\
-  && ./testsuite/emscripten/build.sh --wasm-bigint\
-  && make install
-RUN cp $FFIBUILD/target/include/*.h $PYBUILD/Include/
-RUN mkdir -p $PYINSTALL/lib
-RUN cp $FFIBUILD/target/lib/libffi.a $PYINSTALL/lib/
 # Build emscripten python
-WORKDIR $PYBUILD
-COPY ./Setup.local $PYBUILD/Modules/
+ENV LIB=libpython3.11.a
 RUN make regen-frozen
-RUN emmake make CROSS_COMPILE=yes -j$(nproc)
-# Install Node via NVM
-SHELL ["/bin/bash", "--login", "-i", "-c"]
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-RUN source /root/.bashrc && nvm install 20
-SHELL ["/bin/bash", "--login", "-c"]
+RUN source /emsdk/emsdk_env.sh &&\
+  emmake make CROSS_COMPILE=yes $LIB -j$(nproc)
+### Playing around
+# ENV MAIN_MODULE_LDFLAGS = \
+#   -O2 -g0 -s WASM_BIGINT\
+#   -L/opt/cpython/install/python-3.11.3/lib/\ 
+#   -s LZ4=1 \
+#   -s ALLOW_MEMORY_GROWTH=1 \
+#   -lffi
 
-
-# # Build python
-# WORKDIR $PYBUILD
-
-# RUN CONFIG_SITE=./Tools/wasm/config.site-wasm32-emscripten\
-#     READELF=true\
-#     emconfigure ./configure\
-#     CFLAGS="${PYTHON_CFLAGS}"\
-#     CPPFLAGS="-sUSE_BZIP2=1 -sUSE_ZLIB=1"\
-#     PLATFORM_TRIPLET="wasm32-emscripten"\
-#     --without-pymalloc\
-#     --disable-shared\
-#     --disable-ipv6\
-#     --enable-big-digits=30\
-#     --enable-optimizations\
-#     --host=wasm32-unknown-emscripten\
-#     --build=$(../../config.guess)\
-#     --prefix=$PYINSTALL \
-#     --with-build-python=$(which python3.11)
-
-# install emcc ports so configure is able to detect the dependencies
-# RUN embuilder build zlib bzip2
-# # Install libffi-emscripten
-# ENV BUILDDIR=/tmp/libffi-emscripten
-# RUN git clone --depth=1 https://github.com/hoodmane/libffi-emscripten.git /tmp/libffi-emscripten
-# WORKDIR /tmp/libffi-emscripten
-# COPY ./build.sh /tmp/libffi-emscripten
-# RUN ./build.sh
-# RUN rm -rf /tmp/libffi-emscripten
-# ####################################################################################################
-# # Install Node via NVM
-# SHELL ["/bin/bash", "--login", "-i", "-c"]
-# RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-# RUN source /root/.bashrc && nvm install 20
-# SHELL ["/bin/bash", "--login", "-c"]
-# ####################################################################################################
-# # Checkout Python 3.11.9
-# RUN git clone --depth 1 --branch v3.11.9 https://github.com/python/cpython.git /opt/cpython
-# RUN echo '*shared*\n_ctypes _ctypes/_ctypes.c _ctypes/callbacks.c _ctypes/callproc.c _ctypes/stgdict.c _ctypes/cfield.c -lffi' >> /opt/cpython/Modules/Setup.local
-# # Build the "build" python, which will be used to build the cross-compiled python
-# RUN mkdir -p /opt/cpython/builddir/build
-# WORKDIR /opt/cpython/builddir/build
-# RUN ../../configure -C --enable-optimizations
-# RUN make -j$(nproc)
-# ####################################################################################################
-# # Build emscripten python
-# # RUN emcc --clear-cache
-# RUN mkdir -p /opt/cpython/builddir/emscripten-node
-# RUN cp /opt/libffi-emscripten/lib/libffi.a /emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten
-# RUN cp /opt/libffi-emscripten/lib/libffi.la /emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten
-# RUN cp /opt/libffi-emscripten/lib/pkgconfig/libffi.pc /emsdk/upstream/emscripten/cache/sysroot/lib/pkgconfig
-# RUN cp /opt/libffi-emscripten/include/ffi* /emsdk/upstream/emscripten/cache/sysroot/include/
-# WORKDIR /opt/cpython/builddir/emscripten-node
-# # ENV LIBFFI_INCLUDEDIR="/opt/libffi-emscripten/include"
-# # ENV LIBFFI_CFLAGS="-I/opt/libffi-emscripten/include"
-# # ENV LIBFFI_LIBS="-L/opt/libffi-emscripten/lib -lffi"
-# ENV CONFIGURE_CPPFLAGS="-I/opt/libffi-emscripten/include"
-# ENV CONFIGURE_LDFLAGS="-L/opt/libffi-emscripten/lib"
-# ENV PKG_CONFIG_PATH="/opt/libffi-emscripten"
-# RUN CONFIG_SITE=../../Tools/wasm/config.site-wasm32-emscripten\
-#   emconfigure ../../configure -C\
-#   --host=wasm32-unknown-emscripten\
-#   # LIBFFI_INCLUDEDIR="/opt/libffi-emscripten/include"\
-#   # LIBFFI_CFLAGS="-I/opt/libffi-emscripten/include"\
-#   # LIBFFI_LIBS="-L/opt/libffi-emscripten/lib -lffi"\
-#   CONFIGURE_CPPFLAGS="-I/opt/libffi-emscripten/include"\
-#   CONFIGURE_LDFLAGS="-L/opt/libffi-emscripten/lib"\
-#   PKG_CONFIG_PATH="/opt/libffi-emscripten"\
-#   --build=$(../../config.guess)\
-#   --with-emscripten-target=node\
-#   --with-build-python=$(pwd)/../build/python\
-#   --enable-wasm-dynamic-linking\
+# RUN source /emsdk/emsdk_env.sh &&\
+#   CONFIG_SITE=./Tools/wasm/config.site-wasm32-emscripten\
+#   READELF=true\
+#   emconfigure ./configure\
+#   CFLAGS="-O2 -g0 -fPIC -DPY_CALL_TRAMPOLINE"\
+#   CPPFLAGS="-sUSE_BZIP2=1 -sUSE_ZLIB=1 ${MAIN_MODULE_LDFLAGS}" \
+#   PLATFORM_TRIPLET="wasm32-emscripten"\
+#   --with-build-python=$LIB\
+#   --without-pymalloc\
+#   --disable-shared\
+#   --disable-ipv6\
+#   --enable-big-digits=30\
 #   --enable-optimizations\
-#   "$@"
-# RUN emmake make -j$(nproc)
+#   --host=wasm32-unknown-emscripten\
+#   --with-emscripten-target=node\
+#   --build=$(./config.guess)
+# # RUN make regen-frozen
+# # RUN source /emsdk/emsdk_env.sh && emmake make CROSS_COMPILE=yes -j$(nproc)

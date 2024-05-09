@@ -14,9 +14,13 @@ docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) pywasm main.py -o main.wasm
 - 2022 tax return
 - amazon supplies receipts
 - repairs
-
-
-- Illinois $120
 - Investment account tax form
-- Fundrise tax form
-- Robinhood tax form
+  - Fundrise tax form
+  - Robinhood tax form
+
+
+- download nuitka
+- apply all changes from py2wasm
+  - this will show you everything the guy changed
+- figure out how to incorporate your python and your emcc
+- make it so that it compiles from python within your directory and places a wasm file in the same directory

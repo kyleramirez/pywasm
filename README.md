@@ -35,3 +35,40 @@ docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) pywasm main.py -o main.wasm
 # Copy local setup
 
 --with-libs="-L/opt/cpython/install/python-3.11.3/lib -lffi -lstdc++"\
+
+
+
+export LDFLAGS_BASE=\
+
+
+  
+export MAIN_MODULE_LDFLAGS=
+  -s MAIN_MODULE=1
+  -s MODULARIZE=1
+  -s DEMANGLE_SUPPORT=1
+	-s FORCE_FILESYSTEM=1 \
+	-s TOTAL_MEMORY=20971520 \
+	-s EXPORT_ALL=1 \
+	-s STACK_SIZE=5MB \
+	-s EXPORT_NAME="'_createPyodideModule'" \
+	-s EXPORT_EXCEPTION_HANDLING_HELPERS \
+	-s EXCEPTION_CATCHING_ALLOWED=['we only want to allow exception handling in side modules'] \
+	-sEXPORTED_RUNTIME_METHODS='wasmTable,ERRNO_CODES' \
+	-s AUTO_JS_LIBRARIES=0 \
+	-s AUTO_NATIVE_LIBRARIES=0 \
+	-s NODEJS_CATCH_EXIT=0 \
+	-s NODEJS_CATCH_REJECTION=0 \
+	\
+	-lidbfs.js \
+	-lnodefs.js \
+	-lproxyfs.js \
+	-lworkerfs.js \
+	-lwebsocket.js \
+	-leventloop.js \
+	-lhiwire \
+	\
+	-lGL \
+	-legl.js \
+	-lwebgl.js \
+	-lhtml5_webgl.js \
+	-sGL_WORKAROUND_SAFARI_GETCONTEXT_BUG=0

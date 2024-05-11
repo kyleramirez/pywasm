@@ -1,0 +1,56 @@
+
+XMLLIBSUBDIRS=  xml xml/dom xml/etree xml/parsers xml/sax
+LIBSUBDIRS=     asyncio \
+                collections \
+                concurrent concurrent/futures \
+                csv \
+                $(XMLLIBSUBDIRS) \
+                xmlrpc \
+                zoneinfo \
+                __phello__
+RUN sed -i -e 's/libinstall:.*/libinstall:/' Makefile
+RUN sed -i '/MODOBJS=/s/$/ $LIBMPDEC_OBJS $LIBEXPAT_OBJS /' Makefile
+RUN sed -i -e 's/TEST_MODULES=yes/TEST_MODULES=NO/' Makefile
+# RUN sed -i -n '/lib2to3.*Grammar.txt/{n;x;d;};x;1d;p;${x;p;}' Makefile
+COPY ./remove-modules.sh .
+RUN ./remove-modules.sh
+# Remove unsupported modules
+RUN rm -r ./Lib/ensurepip/\
+          ./Lib/venv/\
+          ./Lib/lib2to3/\
+          ./Lib/_osx_support.py\
+          ./Lib/_aix_support.py\
+          ./Lib/curses/\
+          ./Lib/dbm/\
+          ./Lib/idlelib/\
+          ./Lib/tkinter/\
+          ./Lib/turtle.py\
+          ./Lib/turtledemo\
+          ./Lib/xmlrpc\
+          ./Lib/xml\
+          ./Lib/zoneinfo\
+          ./Lib/urllib\
+          ./Lib/unittest\
+          ./Lib/tomllib\
+          ./Lib/sqlite3\
+          ./Lib/wsgiref
+RUN touch $LIB
+RUN source /emsdk/emsdk_env.sh &&\
+  emmake make PYTHON_FOR_BUILD=$(which python3.11) CROSS_COMPILE=yes inclinstall libinstall $LIB -j$(nproc)
+# RUN cp $LIB $PYINSTALL/lib
+# WORKDIR $PYINSTALL
+# COPY ./main.cpp .
+# RUN source /emsdk/emsdk_env.sh &&\
+#   em++ -o python.js main.cpp\
+#     -O2\
+#     -I$PYINSTALL/include/python3.11\
+#     -L$PYINSTALL/lib/\
+#     -lpython3.11\
+#     -lffi\
+#     -lstdc++\
+#     -sWASM_BIGINT\
+#     -sLZ4=1\
+#     -sUSE_ZLIB\
+#     -sUSE_BZIP2\
+#     -sALLOW_MEMORY_GROWTH=1\
+#     --no-entry

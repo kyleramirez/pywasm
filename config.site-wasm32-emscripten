@@ -15,7 +15,7 @@ ac_cv_file__dev_ptmx=no
 ac_cv_file__dev_ptc=no
 
 # dummy readelf, Emscripten build does not need readelf.
-# ac_cv_prog_ac_ct_READELF=true
+ac_cv_prog_ac_ct_READELF=true
 
 # new undefined symbols / unsupported features
 ac_cv_func_posix_spawn=no
@@ -23,20 +23,13 @@ ac_cv_func_posix_spawnp=no
 ac_cv_func_eventfd=no
 ac_cv_func_memfd_create=no
 ac_cv_func_prlimit=no
-# ac_cv_func_openat=no
-# ac_cv_func_mkdirat=no
-# ac_cv_func_fchownat=no
-# ac_cv_func_renameat=no
-# ac_cv_func_readlinkat=no
-# ac_cv_func_fchmodat=no
-# ac_cv_func_dup3=no
 
 # unsupported syscall, https://github.com/emscripten-core/emscripten/issues/13393
 ac_cv_func_shutdown=no
 
 # The rest is based on pyodide
 # https://github.com/pyodide/pyodide/blob/main/cpython/pyconfig.undefs.h
-# ac_cv_func_epoll=no
+
 ac_cv_func_epoll_create=no
 ac_cv_func_epoll_create1=no
 ac_cv_header_linux_vm_sockets_h=no
@@ -80,7 +73,6 @@ ac_cv_func_posix_fallocate=no
 # Syscalls that resulted in a segfault
 ac_cv_func_utimensat=no
 ac_cv_header_sys_ioctl_h=no
-# ac_cv_header_sys_socket_h=no
 
 # sockets are supported, but only AF_INET / AF_INET6 in non-blocking mode.
 # Disable AF_UNIX and AF_PACKET support, see socketmodule.h.
@@ -114,10 +106,19 @@ ac_cv_func_faccessat=no
 # alarm signal is not delivered, may need a callback into the event loop?
 ac_cv_func_alarm=no
 
-# ac_cv_pthread_is_default=yes
+ac_cv_pthread_is_default=yes
+ac_cv_func_openat=no
+ac_cv_func_mkdirat=no
+ac_cv_func_fchownat=no
+ac_cv_func_renameat=no
+ac_cv_func_readlinkat=no
+ac_cv_func_fchmodat=no
+ac_cv_func_dup3=no
+ac_cv_func_epoll=no
+ac_cv_header_sys_socket_h=no
 
 # Unsupported functionality
-# #undef HAVE_PTHREAD_H
+#undef HAVE_PTHREAD_H
 
-# #define CONFIG_32
-# #define ANSI
+#define CONFIG_32
+#define ANSI

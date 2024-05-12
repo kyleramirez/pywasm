@@ -54,3 +54,59 @@ RUN source /emsdk/emsdk_env.sh &&\
 #     -sUSE_BZIP2\
 #     -sALLOW_MEMORY_GROWTH=1\
 #     --no-entry
+
+
+
+RUN source /emsdk/emsdk_env.sh &&\
+  CONFIG_SITE=./config.site-wasm32-emscripten\
+  READELF=true\
+  emconfigure ./configure\
+  CFLAGS="-O2 -g0 -fPIC -DPY_CALL_TRAMPOLINE"\
+  CPPFLAGS="-sUSE_BZIP2=1 -sUSE_ZLIB=1" \
+  PLATFORM_TRIPLET="wasm32-emscripten"\
+  --without-pymalloc\
+  --disable-shared\
+  --disable-ipv6\
+  --enable-big-digits=30\
+  --enable-optimizations\
+  --host=wasm32-unknown-emscripten\
+  --with-emscripten-target=node\
+  --build=$(./config.guess)\
+  --prefix=$PYINSTALL\
+  --with-build-python=$(which python3.11)
+/////////////////////////////
+
+
+/////////////////////////////
+  --with-libs="-L/opt/cpython/install/python-3.11.3/lib -lffi -lstdc++"\
+  export MAIN_MODULE_LDFLAGS=
+  -s MAIN_MODULE=1
+  -s MODULARIZE=1
+  -s DEMANGLE_SUPPORT=1
+  -s FORCE_FILESYSTEM=1 \
+  -s TOTAL_MEMORY=20971520 \
+  -s EXPORT_ALL=1 \
+  -s STACK_SIZE=5MB \
+  -s EXPORT_NAME="'_createPyodideModule'" \
+  -s EXPORT_EXCEPTION_HANDLING_HELPERS \
+  -s EXCEPTION_CATCHING_ALLOWED=['we only want to allow exception handling in side modules'] \
+  -sEXPORTED_RUNTIME_METHODS='wasmTable,ERRNO_CODES' \
+  -s AUTO_JS_LIBRARIES=0 \
+  -s AUTO_NATIVE_LIBRARIES=0 \
+  -s NODEJS_CATCH_EXIT=0 \
+  -s NODEJS_CATCH_REJECTION=0 \
+  \
+  -lidbfs.js \
+  -lnodefs.js \
+  -lproxyfs.js \
+  -lworkerfs.js \
+  -lwebsocket.js \
+  -leventloop.js \
+  -lhiwire \
+  \
+  -lGL \
+  -legl.js \
+  -lwebgl.js \
+  -lhtml5_webgl.js \
+  -sGL_WORKAROUND_SAFARI_GETCONTEXT_BUG=0
+https://gist.github.com/kleisauke/acfa1c09522705efa5eb0541d2d00887

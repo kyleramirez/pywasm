@@ -64,35 +64,13 @@ RUN tar -C $PYBUILD --strip-components=1 -xf $PYTARBALL
 # Patch cpython
 COPY ./cypatches ./patches
 RUN cat ./patches/*.patch | patch -p1
-# Install autoconf
-WORKDIR /opt
-RUN wget https://mirrors.sarata.com/gnu/autoconf/autoconf-2.71.tar.xz
-RUN tar -xf autoconf-2.71.tar.xz
-WORKDIR /opt/autoconf-2.71
-RUN ./configure
-RUN make install
-RUN cp /usr/local/bin/autoconf /usr/bin/autoconf
-WORKDIR /opt
-RUN rm -rf autoconf-2.71
-RUN rm autoconf-2.71.tar.xz
-# Install libffi
-ENV FFIBUILD=$CPYTHONROOT/build/libffi
-ENV LIBFFIREPO=https://github.com/libffi/libffi
-ENV LIBFFI_COMMIT=f08493d249d2067c8b3207ba46693dd858f95db3
-WORKDIR $FFIBUILD
-COPY ./install-ffi.sh .
-RUN ./install-ffi.sh
-RUN cp $FFIBUILD/target/include/*.h $PYBUILD/Include/
-RUN mkdir -p $PYINSTALL/lib
-RUN cp $FFIBUILD/target/lib/libffi.a $PYINSTALL/lib/
-# Copy local setup
-COPY ./Setup.local $PYBUILD/Modules/
 # Generate Makefile
 WORKDIR $PYBUILD
 SHELL ["/bin/bash", "-c"]
-COPY ./config.site-wasm32-emscripten $PYBUILD
 RUN source /emsdk/emsdk_env.sh &&\
-  CONFIG_SITE=./config.site-wasm32-emscripten\
+  embuilder build zlib bzip2
+RUN source /emsdk/emsdk_env.sh &&\
+  CONFIG_SITE=./Tools/wasm/config.site-wasm32-emscripten\
   READELF=true\
   emconfigure ./configure\
   CFLAGS="-O2 -g0 -fPIC -DPY_CALL_TRAMPOLINE"\
@@ -110,6 +88,11 @@ RUN source /emsdk/emsdk_env.sh &&\
   --with-build-python=$(which python3.11)
 # Build emscripten python
 ENV LIB=libpython3.11.a
-RUN make regen-frozen
+# RUN make regen-frozen
 RUN source /emsdk/emsdk_env.sh &&\
-  emmake make CROSS_COMPILE=yes $LIB -j$(nproc)
+  emmake make CROSS_COMPILE=yes -j$(nproc)
+# At this point, you are building python without ctypes, since that is a huge pain in the ass
+# where you got nowhere after over a week of trying every configuration under the sun
+# So at this point, you can copy over your version of the python build to where nuitka
+# can find it, and then use that python, plus emcc to compile the build, and then hopefully
+# add some externs to the C to add some proper methods to call the python code.

@@ -72,3 +72,4 @@ export MAIN_MODULE_LDFLAGS=
 	-lwebgl.js \
 	-lhtml5_webgl.js \
 	-sGL_WORKAROUND_SAFARI_GETCONTEXT_BUG=0
+#  -v $(pwd):/src
